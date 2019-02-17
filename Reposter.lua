@@ -54,11 +54,13 @@ Reposter.update = function(self)
 	]])
 	self:loadConfig()
 	
+	log("ctime == " .. ctime())
 	if self.config.sleep == 1 then
 		if ctime() > self.config.wakeTime then
 			self.config.sleep = 0
 			self.config.latestPostTime = 0
 			self.config.postedToday = 0
+			log("wake up")
 		else
 			return
 		end
@@ -99,7 +101,7 @@ Reposter.updateVideos = function(self)
 	log("#channels == " .. #channels)
 	
 	for _, channel in ipairs(channels) do
-		log("id == " .. channel.id)
+		-- log("id == " .. channel.id)
 		local response = self:getVideos(channel.channelId)
 		
 		if response.items then
@@ -113,8 +115,8 @@ Reposter.updateVideos = function(self)
 end
 
 Reposter.getVideos = function(self, channelId)
-	log("-- updateVideos")
-	log("channelId == " .. channelId)
+	-- log("-- updateVideos")
+	-- log("channelId == " .. channelId)
 	
 	local url = table.concat({
 		self.ytSearchUrl, "?",
@@ -126,12 +128,12 @@ Reposter.getVideos = function(self, channelId)
 			maxResults = 5
 		})
 	})
-	log("url == " .. url)
+	-- log("url == " .. url)
 	
 	local body, status_code, headers = http.simple(url)
 	-- log("body == " .. body)
-	log("status_code == " .. status_code)
-	log("headers == " .. tostring(headers))
+	-- log("status_code == " .. status_code)
+	-- log("headers == " .. tostring(headers))
 	
 	return from_json(body)
 end
@@ -167,13 +169,14 @@ Reposter.postVideos = function(self)
 	local postDelay = math.min(
 		math.max(
 			self.config.postMinDelay,
-			self.config.postTime / #videos
+			(self.config.postTime - ctime() + self.config.wakeTime) / #videos
 		),
 		self.config.postMaxDelay
 	)
+	log("#postDelay == " .. postDelay .. " (" .. (self.config.postTime - ctime() + self.config.wakeTime) / #videos .. ")")
 	
 	if self.config.postedToday == 0 or ctime() - self.config.latestPostTime > postDelay then
-		self:postVideo(video)
+		self:postVideo(videos[1])
 		self.config.postedToday = self.config.postedToday + 1
 		self.config.latestPostTime = ctime()
 	end
