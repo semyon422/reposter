@@ -168,7 +168,7 @@ local function post()
 	url = "https://api.vk.com/method/wall.post" .. "?" .. http_util.encode_query_string({
 		v = 5.103,
 		owner_id = -config.vkGroupId,
-		message = ("%s\n%s\n%s"):format(video.title, video.description, ytVideoUrl:format(video.video_id)),
+		message = ("%s\n%s\n%s"):format(video.title, video.description, ytVideoUrl .. video.video_id),
 		attachments = "video" .. -config.vkGroupId .. "_" .. vk_video_id,
 		access_token = config.vkAccessToken
 	})
