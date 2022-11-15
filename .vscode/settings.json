@@ -1,0 +1,14 @@
+{
+    "Lua.runtime.version": "LuaJIT",
+    "Lua.workspace.ignoreSubmodules": false,
+    "Lua.workspace.maxPreload": 1000,
+    "Lua.workspace.ignoreDir": [
+        ".vscode",
+        "*/bench",
+        "*/spec",
+        "*/test",
+        "*/tests",
+    ],
+    "Lua.completion.autoRequire": false,
+    "Lua.workspace.checkThirdParty": false,
+}

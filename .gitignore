@@ -1,0 +1,6 @@
+LuaJIT
+root
+config.lua
+data.sqlite
+channels
+reposter.log

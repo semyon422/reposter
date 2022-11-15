@@ -1,0 +1,10 @@
+#!/bin/bash
+. ./setenv
+
+git clone https://github.com/LuaJIT/LuaJIT
+cd LuaJIT
+make
+make install DESTDIR=$TREE PREFIX=
+cd ..
+
+ln -sf $TREE/bin/luajit-2.1.0-beta3 $TREE/bin/luajit

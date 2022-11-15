@@ -1,0 +1,4 @@
+#!/bin/bash
+. ./setenv
+export LD_LIBRARY_PATH=$PWD
+screen -dmS reposter luajit main.lua
