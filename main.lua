@@ -17,37 +17,31 @@ local function to_unit_time(s)
 	return date.diff(date(s), date("Jan 01 1970 00:00:00")):spanseconds()
 end
 
-local ytVideoUrl = "https://youtu.be/"
-
-local function parseVideo(video)
-	return {
-		video_id = video.id.videoId,
-		published_at = to_unit_time(video.snippet.publishedAt),
-		title = video.snippet.title,
-		description = video.snippet.description,
-	}
+local function yt_link(id)
+	return "https://youtu.be/" .. id
 end
 
-local function getVideos(channelId)
-	local body = https.request("https://www.googleapis.com/youtube/v3/search" .. "?" .. http_util.encode_query_string({
+local yt_search = "https://www.googleapis.com/youtube/v3/search"
+
+local function get_videos(channelId)
+	local body, err = https.request(yt_search .. "?" .. http_util.encode_query_string({
 		key = config.ytKey,
 		channelId = channelId,
 		part = "snippet,id",
 		order = "date",
 		maxResults = 5
 	}))
+	if not body then
+		return nil, err
+	end
 
 	local ok, res = pcall(cjson.decode, body)
 	if not ok then
 		log.debug(body)
 		return nil, res
-	end
-
-	if res.error then
+	elseif res.error then
 		return nil, res.error.message
-	end
-
-	if res.items then
+	elseif res.items then
 		return res.items
 	end
 
@@ -55,7 +49,7 @@ local function getVideos(channelId)
 	return nil, "Unknown error"
 end
 
-local function vid_id(video)
+local function get_id(video)
 	return video.video_id
 end
 
@@ -72,13 +66,13 @@ local function search()
 	end
 	log.trace("#channels = " .. #channels)
 
-	local foundVideos = {}
-	local foundVideosMap = {}
+	local videos = {}
+	local videos_by_id = {}
 	local i = 0
 	for _, channelId in ipairs(channels) do
 		io.write(".")
 		io.flush()
-		local videos, err = getVideos(channelId)
+		local videos, err = get_videos(channelId)
 		if not videos then
 			io.write("\n")
 			log.warn("Can't get videos for " .. channelId)
@@ -87,30 +81,33 @@ local function search()
 		end
 		for _, video in ipairs(videos) do
 			if video.id.kind == "youtube#video" then
-				local db_video = parseVideo(video)
-				table.insert(foundVideos, db_video)
-				foundVideosMap[db_video.video_id] = db_video
+				local db_video = {
+					video_id = video.id.videoId,
+					published_at = to_unit_time(video.snippet.publishedAt),
+					title = video.snippet.title,
+					description = video.snippet.description,
+				}
+				table.insert(videos, db_video)
+				videos_by_id[db_video.video_id] = db_video
 			end
 		end
 		i = i + 1
 	end
 	io.write("\n")
 	log.trace("Channels updated: " .. i .. "/" .. #channels)
-	log.trace("Videos found: " .. #foundVideos)
+	log.trace("Videos found: " .. #videos)
 
-	local localVideos = db:select("videos")
-
-	local new, old, all = table_util.array_update(foundVideos, localVideos, vid_id, vid_id)
+	local new = table_util.array_update(videos, db:select("videos"), get_id, get_id)
 
 	log.trace("New videos: " .. #new)
 
 	for _, video_id in ipairs(new) do
-		log.trace("add " .. ytVideoUrl .. video_id)
-		db:insert("videos", foundVideosMap[video_id])
+		log.trace("add " .. yt_link(video_id))
+		db:insert("videos", videos_by_id[video_id])
 	end
 end
 
-local function vkRequest(url)
+local function request_vk(url)
 	log.debug("GET " .. url)
 	local body, err = https.request(url)
 	if not body then
@@ -143,19 +140,19 @@ local function post()
 	end
 
 	local video = videos[1]
-	log.trace("Add vk video " .. ytVideoUrl .. video.video_id)
+	log.trace("Add vk video " .. yt_link(video.video_id))
 
 	local url = "https://api.vk.com/method/video.save" .. "?" .. http_util.encode_query_string({
 		v = 5.103,
 		name = video.title,
 		description = video.title .. "\n" .. video.description,
-		link = ytVideoUrl .. video.video_id,
+		link = yt_link(video.video_id),
 		wallpost = 0,
 		group_id = config.vkGroupId,
 		access_token = config.vkAccessToken
 	})
 
-	local res, err = vkRequest(url)
+	local res, err = request_vk(url)
 	if not res then
 		db:update("videos", {posted_at = 0}, "video_id = ?", video.video_id)
 		return nil, err
@@ -164,7 +161,7 @@ local function post()
 	socket.sleep(1)
 
 	local vk_video_id = res.response.video_id
-	res, err = vkRequest(res.response.upload_url)
+	res, err = request_vk(res.response.upload_url)
 	if not res then
 		db:update("videos", {posted_at = 0}, "video_id = ?", video.video_id)
 		return nil, err
@@ -175,11 +172,11 @@ local function post()
 	url = "https://api.vk.com/method/wall.post" .. "?" .. http_util.encode_query_string({
 		v = 5.103,
 		owner_id = -config.vkGroupId,
-		message = ("%s\n%s\n%s"):format(video.title, video.description, ytVideoUrl .. video.video_id),
+		message = ("%s\n%s\n%s"):format(video.title, video.description, yt_link(video.video_id)),
 		attachments = "video" .. -config.vkGroupId .. "_" .. vk_video_id,
 		access_token = config.vkAccessToken
 	})
-	res, err = vkRequest(url)
+	res, err = request_vk(url)
 	if not res then
 		return nil, err
 	end
