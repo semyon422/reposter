@@ -114,7 +114,6 @@ local function vkRequest(url)
 	log.debug("GET " .. url)
 	local body, err = https.request(url)
 	if not body then
-		log.debug(err)
 		return nil, err
 	end
 
