@@ -112,7 +112,11 @@ end
 
 local function vkRequest(url)
 	log.debug("GET " .. url)
-	local body = https.request(url)
+	local body, err = https.request(url)
+	if not body then
+		log.debug(err)
+		return nil, err
+	end
 
 	local ok, res = pcall(cjson.decode, body)
 	if not ok then
