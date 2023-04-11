@@ -120,6 +120,8 @@ local function vkRequest(url)
 		return nil, res
 	elseif res.error then
 		return nil, res.error.error_msg
+	elseif res.error_msg then
+		return nil, res.error_msg
 	elseif not res.response then
 		log.debug(body)
 		return nil, "Unknown error"
@@ -152,6 +154,7 @@ local function post()
 
 	local res, err = vkRequest(url)
 	if not res then
+		db:update("videos", {posted_at = 0}, "video_id = ?", video.video_id)
 		return nil, err
 	end
 
@@ -160,6 +163,7 @@ local function post()
 	local vk_video_id = res.response.video_id
 	res, err = vkRequest(res.response.upload_url)
 	if not res then
+		db:update("videos", {posted_at = 0}, "video_id = ?", video.video_id)
 		return nil, err
 	end
 
