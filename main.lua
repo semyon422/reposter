@@ -24,13 +24,15 @@ end
 local yt_search = "https://www.googleapis.com/youtube/v3/search"
 
 local function get_videos(channelId)
-	local body, err = https.request(yt_search .. "?" .. http_util.encode_query_string({
+	local url = yt_search .. "?" .. http_util.encode_query_string({
 		key = config.ytKey,
 		channelId = channelId,
 		part = "snippet,id",
 		order = "date",
 		maxResults = 5
-	}))
+	})
+	log.debug("GET " .. url)
+	local body, err = https.request(url)
 	if not body then
 		return nil, err
 	end
