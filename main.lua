@@ -74,14 +74,14 @@ local function search()
 	for _, channelId in ipairs(channels) do
 		io.write(".")
 		io.flush()
-		local videos, err = get_videos(channelId)
-		if not videos then
+		local yt_videos, err = get_videos(channelId)
+		if not yt_videos then
 			io.write("\n")
 			log.warn("Can't get videos for " .. channelId)
 			log.warn(err)
 			break
 		end
-		for _, video in ipairs(videos) do
+		for _, video in ipairs(yt_videos) do
 			if video.id.kind == "youtube#video" then
 				local db_video = {
 					video_id = video.id.videoId,
