@@ -1,5 +1,5 @@
 #!/bin/bash
-. ./setenv-linux
+. ./setenv
 
 wget http://luarocks.github.io/luarocks/releases/luarocks-3.9.2.tar.gz
 tar -zxvf luarocks-3.9.2.tar.gz
