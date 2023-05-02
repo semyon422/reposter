@@ -1,0 +1,11 @@
+#!/bin/bash
+. ./setenv-linux
+
+wget http://luarocks.github.io/luarocks/releases/luarocks-3.9.2.tar.gz
+tar -zxvf luarocks-3.9.2.tar.gz
+rm luarocks-3.9.2.tar.gz
+cd luarocks-3.9.2
+./configure --prefix=$TREE --force-config --with-lua=$TREE
+make
+make install
+cd ..

@@ -1,5 +1,5 @@
 #!/bin/bash
 . ./setenv
-$LUAROCKS install luasec
-$LUAROCKS install lua-cjson
-$LUAROCKS install date
+luarocks install luasec
+luarocks install lua-cjson
+luarocks install date
