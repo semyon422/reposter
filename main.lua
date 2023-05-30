@@ -232,6 +232,8 @@ local function remove_30days()
 end
 
 local function run()
+	local sleep_hours = 1
+
 	db:open(db_name)
 	if not db:table_info("videos") then
 		init()
@@ -241,14 +243,16 @@ local function run()
 			log.warn(err)
 		elseif posted == 0 then
 			search()
+			sleep_hours = sleep_hours * 6
 		end
 		remove_30days()
 	end
 	db:close()
+
+	log.debug("sleep " .. sleep_hours .. " hours")
+	socket.sleep(sleep_hours * 3600)
 end
 
 while true do
 	run()
-	log.debug("sleep")
-	socket.sleep(60 * 60)
 end
