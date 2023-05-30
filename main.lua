@@ -196,10 +196,39 @@ local function init()
 			title TEXT NOT NULL,
 			description INTEGER NOT NULL
 		);
-		CREATE INDEX videos_published_at_IDX ON videos (published_at);
+		CREATE INDEX videos_published_at_index ON videos (published_at);
 	]])
 	search()
 	db:update("videos", {posted_at = os.time()})
+end
+
+local function remove_30days()
+	local videos = db:select("videos", "posted_at IS NOT NULL ORDER BY posted_at ASC LIMIT 1")
+	if #videos == 0 then
+		return
+	end
+
+	if date.diff(os.time(), videos[1].posted_at):spandays() < 30 then
+		return
+	end
+
+	log.trace("Removing old videos")
+
+	local not_posted = db:select("videos", "posted_at IS NULL")
+	log.trace("Keep " .. #not_posted .. " not posted videos")
+
+	db:exec([[
+		DROP TABLE IF EXISTS videos;
+		DROP INDEX IF EXISTS videos_published_at_index;
+	]])
+
+	init()
+
+	log.trace("Bring back " .. #not_posted .. " not posted videos")
+	for i = 1, #not_posted do
+		db:insert("videos", not_posted[i], true)
+		db:update("videos", {posted_at = db.NULL}, "video_id = ?", not_posted[i].video_id)
+	end
 end
 
 local function run()
@@ -213,6 +242,7 @@ local function run()
 		elseif posted == 0 then
 			search()
 		end
+		remove_30days()
 	end
 	db:close()
 end
