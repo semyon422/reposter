@@ -188,6 +188,10 @@ end
 
 local function init()
 	db:exec([[
+		DROP TABLE IF EXISTS videos;
+		DROP INDEX IF EXISTS videos_published_at_index;
+	]])
+	db:exec([[
 		CREATE TABLE videos (
 			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 			video_id TEXT NOT NULL UNIQUE,
@@ -198,6 +202,9 @@ local function init()
 		);
 		CREATE INDEX videos_published_at_index ON videos (published_at);
 	]])
+	search()
+	db:update("videos", {posted_at = os.time()})
+	return true
 end
 
 local function remove_30days()
@@ -215,51 +222,41 @@ local function remove_30days()
 	local not_posted = db:select("videos", "posted_at IS NULL")
 	log.trace("Keep " .. #not_posted .. " not posted videos")
 
-	db:exec([[
-		DROP TABLE IF EXISTS videos;
-		DROP INDEX IF EXISTS videos_published_at_index;
-	]])
 	init()
-
-	return not_posted
-end
-
-local function refresh()
-	local not_posted = remove_30days()
-
-	search()
-
-	if not not_posted then
-		return
-	end
-
-	db:update("videos", {posted_at = os.time()})
 
 	log.trace("Bring back " .. #not_posted .. " not posted videos")
 	for i = 1, #not_posted do
 		db:insert("videos", not_posted[i], true)
 		db:update("videos", {posted_at = db.NULL}, "video_id = ?", not_posted[i].video_id)
 	end
+
+	return true
 end
 
 local function run()
 	local sleep_hours = 1
+	local searched
 
 	db:open(db_name)
+
 	if not db:table_info("videos") then
-		init()
-		search()
-		db:update("videos", {posted_at = os.time()})
-	else
-		local posted, err = post()
-		if not posted then
-			log.warn(err)
-		elseif posted == 0 then
-			refresh()
-			sleep_hours = sleep_hours * 6
-		end
+		searched = init()
 	end
+
+	searched = searched or remove_30days()
+
+	local posted, err = post()
+	if not posted then
+		log.warn(err)
+	elseif posted == 0 and not searched then
+		searched = search()
+	end
+
 	db:close()
+
+	if searched then
+		sleep_hours = sleep_hours * 6
+	end
 
 	log.debug("sleep " .. sleep_hours .. " hours")
 	socket.sleep(sleep_hours * 3600)
