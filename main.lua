@@ -156,7 +156,7 @@ local function post()
 
 	local res, err = request_vk(url)
 	if not res then
-		db:update("videos", {posted_at = 0}, "video_id = ?", video.video_id)
+		db:update("videos", {posted_at = os.time()}, "video_id = ?", video.video_id)
 		return nil, err
 	end
 
@@ -165,7 +165,7 @@ local function post()
 	local vk_video_id = res.response.video_id
 	res, err = request_vk(res.response.upload_url)
 	if not res then
-		db:update("videos", {posted_at = 0}, "video_id = ?", video.video_id)
+		db:update("videos", {posted_at = os.time()}, "video_id = ?", video.video_id)
 		return nil, err
 	end
 
@@ -198,8 +198,6 @@ local function init()
 		);
 		CREATE INDEX videos_published_at_index ON videos (published_at);
 	]])
-	search()
-	db:update("videos", {posted_at = os.time()})
 end
 
 local function remove_30days()
@@ -221,8 +219,21 @@ local function remove_30days()
 		DROP TABLE IF EXISTS videos;
 		DROP INDEX IF EXISTS videos_published_at_index;
 	]])
-
 	init()
+
+	return not_posted
+end
+
+local function refresh()
+	local not_posted = remove_30days()
+
+	search()
+
+	if not not_posted then
+		return
+	end
+
+	db:update("videos", {posted_at = os.time()})
 
 	log.trace("Bring back " .. #not_posted .. " not posted videos")
 	for i = 1, #not_posted do
@@ -237,15 +248,16 @@ local function run()
 	db:open(db_name)
 	if not db:table_info("videos") then
 		init()
+		search()
+		db:update("videos", {posted_at = os.time()})
 	else
 		local posted, err = post()
 		if not posted then
 			log.warn(err)
 		elseif posted == 0 then
-			search()
+			refresh()
 			sleep_hours = sleep_hours * 6
 		end
-		remove_30days()
 	end
 	db:close()
 
