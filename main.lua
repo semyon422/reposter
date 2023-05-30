@@ -14,7 +14,7 @@ local db = Orm:new()
 local db_name = "data.sqlite"
 
 local function to_unit_time(s)
-	return date.diff(date(s), date("Jan 01 1970 00:00:00")):spanseconds()
+	return date.diff(s, "Jan 01 1970 00:00:00"):spanseconds()
 end
 
 local function yt_link(id)
@@ -135,7 +135,7 @@ end
 local function post()
 	log.trace("Post videos")
 
-	local videos = db:select("videos", "posted_at IS NULL ORDER BY published_at ASC")
+	local videos = db:select("videos", "posted_at IS NULL ORDER BY published_at ASC LIMIT 1")
 	log.trace("Pending videos: " .. #videos)
 	if #videos == 0 then
 		return 0
